@@ -73,14 +73,6 @@ class GitManager(SourceManager):
             self.revision = str(component['revision'])
         else:
             self.revision = "HEAD"
-        
-        # For all operations refering to the origin revision
-        # we must use the revision unless it is head in which
-        # case it must be the origin branch head (i.e. the origin label)
-        if self.revision == "HEAD":
-            self.remote_rev = "origin/" + self.label
-        else:
-            self.remote_rev = self.revision
 
         self.cwd = os.getcwd()
 
@@ -123,7 +115,7 @@ class GitManager(SourceManager):
         if not os.path.exists(self.basename):
             try:
                 self._cmd([self.config.git, 'clone', '-b', self.label, self.repos, self.basename])
-                self._subcmd([self.config.git, 'reset', '--hard', self.remote_rev])
+                self._subcmd([self.config.git, 'reset', '--hard', self.revision])
             except Exception, e:
                 raise Exception, "cannot clone component: " + str(e)
         else:
@@ -133,8 +125,7 @@ class GitManager(SourceManager):
         if self.config.verbose:
             print "Update " + self.basename
         try:
-            self._subcmd([self.config.git, 'fetch', 'origin'])
-            self._subcmd([self.config.git, 'merge', 'origin/' + self.label])
+            self._subcmd([self.config.git, 'pull'])
         except Exception, e:
             raise Exception, "cannot update component: " + str(e)
 
@@ -150,8 +141,7 @@ class GitManager(SourceManager):
         if self.config.verbose:
             print "Rebase " + self.basename
         try:
-            self._subcmd([self.config.git, 'fetch', 'origin'])
-            self._subcmd([self.config.git, 'rebase', 'origin/' + self.label])
+            self._subcmd([self.config.git, 'pull', '--rebase'])
         except Exception, e:
             raise Exception, "cannot rebase component: " + str(e)
 
@@ -159,7 +149,7 @@ class GitManager(SourceManager):
         if self.config.verbose:
             print "Deliver " + self.basename
         try:
-            self._subcmd([self.config.git, 'push', 'origin', self.label])
+            self._subcmd([self.config.git, '-c', 'push.default=upstream', 'push'])
         except Exception, e:
             raise Exception, "cannot deliver component: " + str(e)
 
@@ -170,7 +160,7 @@ class GitManager(SourceManager):
 
     def get_actual_revision(self):
         try:
-            revision = self._subcmd_output([self.config.git, 'rev-list', '--max-count=1', 'HEAD']).strip()
+            revision = self._subcmd_output([self.config.git, 'rev-parse', 'HEAD']).strip()
         except Exception, e:
             raise Exception, "cannot get actual revision: " + str(e)
         return revision
